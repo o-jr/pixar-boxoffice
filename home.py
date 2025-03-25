@@ -26,9 +26,9 @@ st.set_page_config(
 )
 
 def display_sidebar_filters():
-    st.sidebar.page_link("pages/home.py", label="Home", icon="🏠")
+    st.sidebar.page_link("home.py", label="Home", icon="🏠")
     st.sidebar.page_link("app.py", label="Box Office", icon="🎟️")
-    st.sidebar.page_link("pages/movies.py", label="Movies", icon="🎬")
+    st.sidebar.page_link("movies.py", label="Movies", icon="🎬")
 
 main_col1, main_col4, main_col5, main_col2 = st.columns([1, 1, 1, 2])
 main_col1.image("img/logopixar.png", width=350)
@@ -59,7 +59,7 @@ if mid2.button("Box Office", icon="🎟️"):
 
 # Button to open data/movies.py
 if mid3.button("Pixar Movies", icon="🎬"):
-    mid2.page_link("pages/movies.py", label="Pixar Movies")
+    mid2.page_link("movies.py", label="Pixar Movies")
 
 
 ####### botton section ########################

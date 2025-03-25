@@ -12,9 +12,9 @@ st.set_page_config(
 )
 
 def display_sidebar_filters():
-    st.sidebar.page_link("pages/home.py", label="Home", icon="🏠")
+    st.sidebar.page_link("home.py", label="Home", icon="🏠")
     st.sidebar.page_link("app.py", label="Box Office", icon="🎟️")
-    st.sidebar.page_link("pages/movies.py", label="Movies", icon="🎬")
+    st.sidebar.page_link("movies.py", label="Movies", icon="🎬")
 
 def format_number(number, currency=None):
                     if number is None or pd.isna(number):
