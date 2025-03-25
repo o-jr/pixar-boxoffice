@@ -3,6 +3,7 @@ import pandas as pd
 import streamlit as st
 import requests 
 from streamlit_lottie import st_lottie 
+import json
 
 DATA_DIR = 'data/'
 # Set data directory
