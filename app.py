@@ -13,9 +13,9 @@ st.set_page_config(
 
 
 def display_sidebar_filters(df):
-    home = st.sidebar.page_link("home.py", label="Home", icon="🏠")
+    home = st.sidebar.page_link("pages/home.py", label="Home", icon="🏠")
     year_filter = st.sidebar.page_link("app.py", label="Box Office", icon="🎟️")
-    age_filter = st.sidebar.page_link("movies.py", label="Movies", icon="🎬")
+    age_filter = st.sidebar.page_link("pages/movies.py", label="Movies", icon="🎬")
 
 
 # Display the KPIs
