@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 
-def display_sidebar_filters(df):
+def display_sidebar_filters():
     home = st.sidebar.page_link("pages/home.py", label="Home", icon="🏠")
     year_filter = st.sidebar.page_link("app.py", label="Box Office", icon="🎟️")
     age_filter = st.sidebar.page_link("pages/movies.py", label="Movies", icon="🎬")
@@ -675,6 +675,6 @@ if 'film' in merged_df.columns and 'imdb_score' in merged_df.columns and 'cinema
 
 
 def main():
-    filtered_df = display_sidebar_filters(df)
+    filtered_df = display_sidebar_filters()
 if __name__ == "__main__":
     main()

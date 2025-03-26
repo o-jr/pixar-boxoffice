@@ -51,12 +51,12 @@ mid0, mid1, mid2, mid3 = st.columns([0.2, 1, 0.2,0.2])
 mid1.markdown("<h6 style='text-align: center; color: black;'>🎬 For three decades, Disney Pixar has captivated audiences worldwide, redefining animated storytelling. More than just films, they've created cultural touchstones, sparking our imaginations and tugging at our heartstrings. Let's explore the extraordinary journey of Pixar's Golden Age. </h6>", unsafe_allow_html=True)
 
 # Button to open app.py
-if mid2.button("Box Office", icon="🎟️"):
-    mid2.page_link("app.py", label="Box Office")
+if mid2.button("Box Offfice", icon="🎟️"):
+    st.switch_page("app.py")
 
 # Button to open data/movies.py
-if mid3.button("Pixar Movies", icon="🎬"):
-    mid2.page_link("pages/movies.py", label="Pixar Movies")
+if mid3.button("Movies", icon="🎬"):
+    st.switch_page("pages/movies.py")
 
 
 ####### botton section ########################

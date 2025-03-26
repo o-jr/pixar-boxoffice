@@ -25,9 +25,9 @@ def format_number(number, currency=None):
     
                     for unit in ['', 'K', 'M', 'B']:
                         if abs(number) < 1000.0:
-                            return f"{currency_prefix}{number:.0f}{unit}"
+                            return f"{currency_prefix}{number:.2f}{unit}"
                         number /= 1000.0    
-                    return f"{currency_prefix}{original_number:.0f}"     
+                    return f"{currency_prefix}{original_number:.2f}"     
 
 
 main_col1, main_col3, main_col4, main_col2 = st.columns([1,1,1,2])
@@ -287,6 +287,7 @@ def main():
     # Locate the <div class="mw-heading mw-heading3"> elements
     headings_divs = soup.find_all("div", class_="mw-heading mw-heading3")
     
+    st.title("What’re the next big Pixar release?")
     # We will store data "Upcoming" -> Table of films
     heading_titles = ["Upcoming"]
     
