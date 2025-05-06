@@ -58,6 +58,9 @@ if mid2.button("Box Offfice", icon="🎟️"):
 if mid3.button("Movies", icon="🎬"):
     st.switch_page("pages/movies.py")
 
+if mid1.button("App1", icon="🎬"):
+    st.switch_page("app1.py")    
+
 
 ####### botton section ########################
 bott1, bott2, bott3 = st.columns([1,0.8,1])

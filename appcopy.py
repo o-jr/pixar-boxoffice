@@ -1,11 +1,8 @@
 import os
 import pandas as pd
 import streamlit as st  
+import altair as alt
 
-
-import matplotlib.pyplot as plt
-import matplotlib.transforms as mtransforms
-from matplotlib.ticker import FuncFormatter
 
 st.set_page_config(
     page_title="Pixar Dashboard",
@@ -19,6 +16,7 @@ def display_sidebar_filters():
     home = st.sidebar.page_link("pages/home.py", label="Home", icon="🏠")
     year_filter = st.sidebar.page_link("app.py", label="Box Office", icon="🎟️")
     age_filter = st.sidebar.page_link("pages/movies.py", label="Movies", icon="🎬")
+    test_filter = st.sidebar.page_link("pages/test.py", label="TTs", icon="🎬")
 
 
 # Display the KPIs
@@ -147,37 +145,31 @@ kpi_col4.metric(
 ################## Line Chart ##############################
 # Ensure 'release_date' and box office columns exist in the DataFrames
 # Assuming data_dir is defined
-
-
-# Setup layout
+# Load the data
 container = st.container(border=True)
-data_dir = "data/"
-
-# Load data
+data_dir = "data/"  # Replace with the actual path to your data directory
 pixar_df = pd.read_csv(os.path.join(data_dir, 'pixar_films.csv'))
 box_office_df = pd.read_csv(os.path.join(data_dir, 'box_office.csv'))
 
-# Check required columns
-required_columns = {
-    'pixar_df': ['film', 'release_date'],
-    'box_office_df': ['film', 'box_office_us_canada', 'box_office_other', 'box_office_worldwide', 'budget']
-}
-if all(col in pixar_df.columns for col in required_columns['pixar_df']) and \
-   all(col in box_office_df.columns for col in required_columns['box_office_df']):
+# Check if required columns exist
+if ('release_date' in pixar_df.columns and 
+    'box_office_us_canada' in box_office_df.columns and 
+    'box_office_other' in box_office_df.columns and 
+    'box_office_worldwide' in box_office_df.columns and
+    'budget' in box_office_df.columns
+    ):
 
-    # Merge and preprocess
+    # Merge the DataFrames on 'film'
     merged_box_office_df = pd.merge(pixar_df[['film', 'release_date']], box_office_df, on='film', how='left')
     merged_box_office_df['release_date'] = pd.to_datetime(merged_box_office_df['release_date']).dt.year
 
-    # Melt data
-    melted_df = merged_box_office_df.melt(
-        id_vars=['release_date'],
-        value_vars=['box_office_us_canada', 'box_office_other', 'box_office_worldwide', 'budget'],
-        var_name='Box Office Type',
-        value_name='Revenue'
-    )
+    # Melt the DataFrame to have box office columns in a single column
+    melted_df = merged_box_office_df.melt(id_vars=['release_date'], 
+                                          value_vars=['box_office_us_canada', 'box_office_other', 'box_office_worldwide','budget'], 
+                                          var_name='Box Office Type', 
+                                          value_name='Revenue')
 
-    # Rename box office types
+    # Rename the Box Office Type labels
     melted_df['Box Office Type'] = melted_df['Box Office Type'].replace({
         'box_office_us_canada': 'Domestic',
         'box_office_other': 'Foreign',
@@ -185,8 +177,9 @@ if all(col in pixar_df.columns for col in required_columns['pixar_df']) and \
         'budget': 'Budget'
     })
 
-    # Layout
-    column1, columnnone, column2 = st.columns([3, 0.2, 3])
+
+    # Create two columns for layout
+    column1, columnnone, column2 = st.columns([3,0.2,3])
 
     column1.markdown(
         "<span style='font-size:20px; font-weight:bold;'>"
@@ -195,74 +188,85 @@ if all(col in pixar_df.columns for col in required_columns['pixar_df']) and \
         unsafe_allow_html=True
     )
 
+    # Add a segmented control for multi-selection of box office types
     with container:
         selected_box_office_types = column1.segmented_control(
-            label="Select Box Office Types",
-            options=['Domestic', 'Foreign', 'Worldwide', 'Budget'],
+            label="",
+            options=['Domestic', 'Foreign', 'Worldwide','Budget'],
             selection_mode="multi",
-            default=['Domestic', 'Foreign', 'Worldwide', 'Budget']
-        )
+            default=['Domestic', 'Foreign', 'Worldwide','Budget']
+    )
 
+    # Filter the melted DataFrame based on the selected box office types
     filtered_df = melted_df[melted_df['Box Office Type'].isin(selected_box_office_types)]
 
-    # Define annotations (adjusted release_date to a numeric year)
+    # Create a line chart using Altair
     ANNOTATIONS = [
-        (2020, 0, "😷", "_COVID-19")
+    ("20-22", 0, "😷" , "_COVID-19"),  # (release_date, Revenue, emoji, label)
+]
+
+# Create the base line chart using Altair
+line_chart = alt.Chart(filtered_df).mark_line().encode(
+    x=alt.X('release_date:O', title=None),  # Remove x-axis label
+    y=alt.Y('Revenue:Q', title=None),  # Remove y-axis label
+    color='Box Office Type:N',
+    tooltip=[
+        alt.Tooltip('release_date', type='nominal', title='Release Date'),
+        'Box Office Type',
+        alt.Tooltip('Revenue', type='quantitative', format='$,.0f', title='Worldwide Box Office')
     ]
-    annotations_df = pd.DataFrame(ANNOTATIONS, columns=['release_date', 'Revenue', 'emoji', 'label'])
+).properties(
+    height=400  # Remove hardcoded width for responsiveness
+)
 
-    # Plot
-    fig, ax = plt.subplots(figsize=(10, 6))
+# Create a DataFrame for annotations
+annotations_df = pd.DataFrame(ANNOTATIONS, columns=['release_date', 'Revenue', 'emoji', 'label'])
 
-    # Plot each box office type
-    for bo_type in filtered_df['Box Office Type'].unique():
-        subset = filtered_df[filtered_df['Box Office Type'] == bo_type]
-        ax.plot(subset['release_date'], subset['Revenue'], label=bo_type, marker='o')
+# Create the annotation layer (emoji + text)
+annotation_layer = alt.Chart(annotations_df).mark_text(
+    align='left',
+    baseline='middle',
+    dx=10,  # Horizontal offset for the emoji
+    dy=-10,  # Vertical offset for the emoji
+    fontSize=20,  # Size of the emoji
+).encode(
+    x=alt.X('release_date:O'),
+    y=alt.Y('Revenue:Q'),
+    text='emoji'
+) + alt.Chart(annotations_df).mark_text(
+    align='left',
+    baseline='middle',
+    dx=30,  # Horizontal offset for the label
+    dy=-10,  # Vertical offset for the label
+    fontSize=12,  # Size of the label text
+).encode(
+    x=alt.X('release_date:O'),
+    y=alt.Y('Revenue:Q'),
+    text='label'
+)
 
-    # Format axes
-    ax.set_xlabel("")
-    ax.set_ylabel("")
+# Combine the line chart and annotation layers
+final_chart = (line_chart + annotation_layer).properties(
+    #title='Box Office Revenue Over the Years'
+)
 
-    # Format Y-axis as millions
-    def millions_formatter(x, pos):
-        return f'${int(x * 1e-6)}M'
-
-    ax.yaxis.set_major_formatter(FuncFormatter(millions_formatter))
-
-    # Add grid and legend
-    ax.grid(True, linestyle='--', alpha=0.5)
-    ax.legend(loc='upper left')
-
-    # Add annotations
-    for idx, row in annotations_df.iterrows():
-        # Emoji annotation
-        ax.annotate(
-            row['emoji'],
-            xy=(row['release_date'], row['Revenue']),
-            xytext=(10, -10),
-            textcoords='offset points',
-            fontsize=20,
-            ha='left', va='center'
-        )
-
-        # Label annotation
-        ax.annotate(
-            row['label'],
-            xy=(row['release_date'], row['Revenue']),
-            xytext=(30, -10),
-            textcoords='offset points',
-            fontsize=12,
-            ha='left', va='center'
-        )
-
-    # Adjust layout
-    plt.tight_layout()
-
-    # Display the plot
-    column1.pyplot(fig)
+# Display the line chart in Streamlit
+column1.altair_chart(final_chart, use_container_width=True)
 
 
-########### Awards Table Side by Side ##############################
+
+
+
+
+
+
+
+
+
+
+
+
+########### Awards Table and TABLE  ##############################
 # Create a list of awards
 academy_df = pd.read_csv(os.path.join(data_dir, 'academy.csv'))
 pixar_df = pd.read_csv(os.path.join(data_dir, 'pixar_films.csv'))
@@ -318,71 +322,63 @@ if 'Won' in status_selection:
         axis=1
     )
 
-
-
-
-
-
-
-# Display SCATTERPLOT the filtered DataFrame
+# Display the SCATTER PLOT filtered DataFrame
 ########################################
 ########################################   
-# Ensure 'budget' and 'box_office_worldwide' columns exist in the box office DataFrame
-
+# Load the box office data
 box_office_df = pd.read_csv(os.path.join(data_dir, 'box_office.csv'))
 pixar_df = pd.read_csv(os.path.join(data_dir, 'pixar_films.csv'))
 
-
 # Ensure 'budget' and 'box_office_worldwide' columns exist in the box office DataFrame
+scatter_plot = None
 if 'budget' in box_office_df.columns and 'box_office_worldwide' in box_office_df.columns:
-    # Calculate ROI
+     # Calculate ROI
     box_office_df['ROI'] = ((box_office_df['box_office_worldwide'] - box_office_df['budget']) / box_office_df['budget']) * 100
     # Format ROI to one decimal place with a % sign
     box_office_df['ROI'] = box_office_df['ROI'].map('{:.1f}%'.format)
-
+    
     merged_awards_df['release_date'] = pd.to_datetime(merged_awards_df['release_date']).dt.year
-    release_dates = merged_awards_df['release_date']
-
-    # Create scatter plot using Matplotlib
-    fig, ax = plt.subplots(figsize=(10, 8))
-    scatter = ax.scatter(box_office_df['budget'], box_office_df['box_office_worldwide'], s=100, alpha=0.6)
-
-    # Add titles and labels
-    ax.set_xlabel('Budget ($)', fontsize=12)
-    ax.set_ylabel('Worldwide Box Office ($)', fontsize=12)
-    ax.set_title('Relationship Between Film Budget and Worldwide Box Office Success', fontsize=14, fontweight='bold')
     
-    # Format the axes to display dollars with commas
-    ax.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f'${x:,.0f}'))
-    ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f'${y:,.0f}'))
-
-    # Create a legend with film names and additional info
-    for i, row in box_office_df.iterrows():
-        ax.annotate(f"{row['film']}\nRelease: {release_dates[i]}\nROI: {row['ROI']}",
-                    (row['budget'], row['box_office_worldwide']),
-                    textcoords="offset points",
-                    xytext=(5,-5),
-                    ha='right',
-                    fontsize=9)
-        
-    # Display the plot in Streamlit        
-    column2.markdown(
-        "<span style='font-size:20px; font-weight:bold;'>"
-        "What is the relationship between a film's budget and worldwide box office success? <br>"
-        "</br>"
-        "</span>",
-        unsafe_allow_html=True
+    # Create a scatter plot using Altair with increased chart size
+    scatter_plot = alt.Chart(box_office_df).mark_circle(size=400).encode(
+    x=alt.X('budget', title=None),  # Remove title for x-axis
+    y=alt.Y('box_office_worldwide', title=None),  # Remove title for y-axis
+    tooltip=[
+            'film',
+            alt.Tooltip('release_date', 
+                        type='nominal', title='Release Date'),
+            alt.Tooltip('budget', 
+                       type='quantitative', 
+                       format='$,.0f', 
+                       title='Budget'),
+            alt.Tooltip('box_office_worldwide', 
+                       type='quantitative', 
+                       format='$,.0f', 
+                       title='Worldwide Box Office'),'ROI'
+        ]
+    ).properties(
+        title='',
+        width=500,
+        height=440
     )
-    
-    with column2:        
-        plt.tight_layout()
-        st.pyplot(fig)
-else:
-    print("Required columns 'budget' or 'box_office_worldwide' are missing in the DataFrame.")
+
+# Create two columns for side-by-side display
+column2.markdown(
+    "<span style='font-size:20px; font-weight:bold;'>"
+    "What is the relationship between a films budget and worldwide box office success? <br>"
+    "</br>"
+    "</span>",
+    unsafe_allow_html=True
+)
 
 with col2:
     #st.write("### Films thats Won or Nominated for a award:")
     st.dataframe(display_df.style.apply(highlight_won, subset=['status']), height=550)
+
+with column2:
+    #st.write("### Budget vs Total Revenue Worldwide:")
+    if scatter_plot:
+        st.altair_chart(scatter_plot, use_container_width=True)
 
 
 
@@ -504,42 +500,40 @@ with col_people:
         ok1 = False  # Set this to True if you want to test the warning message
 
         # --- Create People Chart ---
-    if people_chart_data is not None and not people_chart_data.empty:
-        y_axis_title = selected_role
+        if people_chart_data is not None and not people_chart_data.empty:
+            y_axis_title = selected_role
 
-        # Sort data by box_office_worldwide in descending order
-        people_chart_data = people_chart_data.sort_values(by='box_office_worldwide', ascending=False)
+            bars = alt.Chart(people_chart_data).mark_bar().encode(
+                x=alt.X('box_office_worldwide', title=None, axis=None),
+                y=alt.Y('name', sort='-x', title=y_axis_title),
+                tooltip=[
+                    alt.Tooltip('name', title=y_axis_title),
+                    alt.Tooltip('box_office_worldwide', format='$,.0f', title='Total Worldwide Box Office'),
+                    'films'
+                ]
+            )
 
-        # Create a figure and axis
-        fig, ax = plt.subplots(figsize=(5, 4))
+            text = bars.mark_text(
+                align='left',
+                baseline='middle',
+                dx=5,
+                fontSize=10,
+            ).encode(
+                text=alt.Text('box_office_worldwide', format='$.2s'),
+                color=alt.value('black')
+            )
 
-        # Create bar chart
-        bars = ax.barh(people_chart_data['name'], people_chart_data['box_office_worldwide'])
-
-        # Set y-axis title
-        ax.set_ylabel(y_axis_title)
-
-        # Set x-axis title
-        ax.set_xlabel('Total Worldwide Box Office')
-
-        # Add labels and title
-        ax.set_title(f'Revenue Data for {y_axis_title}')
-
-        # Format x-axis tick labels
-        ax.tick_params(axis='x', labelrotation=45)
-        ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, loc: "${:,.0f}".format(x)))
-
-        # Add text labels to bars
-        for i, v in enumerate(people_chart_data['box_office_worldwide']):
-            ax.text(v, i, "${:.2f}".format(v), color='black', ha='left', va='center')
-
-        people_chart = fig
-
-    elif selected_role:
-        print(f"No revenue data to display for {selected_role}.")
+            people_chart = alt.layer(bars, text).configure_view(
+                strokeWidth=0
+            ).properties(
+                width=500,
+                height=400
+            )
+        elif selected_role:
+            st.info(f"No revenue data to display for {selected_role}.")
 
     if people_chart:
-        st.pyplot(people_chart)
+        st.altair_chart(people_chart, use_container_width=True)
     elif selected_role is None and ok1:
         st.warning("Select a role to view data.")
 
@@ -556,51 +550,43 @@ with col_genre:
     st.markdown("<div style='height: 2.2rem;'></div>", unsafe_allow_html=True)
 
     genre_chart = None
-
     if genre_box_office_sum_df is not None and not genre_box_office_sum_df.empty:
-    # Sort the DataFrame by total_box_office_worldwide for plotting
-        genre_box_office_sum_df = genre_box_office_sum_df.sort_values('total_box_office_worldwide', ascending=True)
-
-        # Set up the figure
-        fig, ax = plt.subplots(figsize=(8, 10))  # Adjust size as needed
-
-        # Plot horizontal bars
-        bars = ax.barh(
-            genre_box_office_sum_df['genre'],
-            genre_box_office_sum_df['total_box_office_worldwide'],
-            color='skyblue'
+        # --- Create Genre Chart ---
+        bars_genre = alt.Chart(genre_box_office_sum_df).mark_bar().encode(
+            x=alt.X('total_box_office_worldwide', title=None, axis=None),
+            y=alt.Y('genre', sort='-x', title=''),
+            tooltip=[
+                'genre',
+                alt.Tooltip('total_box_office_worldwide', format='$,.0f', title='Total Worldwide Box Office')
+            ]
         )
 
-        # Add text labels to the bars
-        for bar in bars:
-            width = bar.get_width()
-            ax.text(
-                width + 0.02 * genre_box_office_sum_df['total_box_office_worldwide'].max(),  # position slightly to the right
-                bar.get_y() + bar.get_height() / 2,
-                f"${width/1e9:.2f}B",  # Format as billions
-                va='center',
-                fontsize=9,
-                color='black'
-            )
+        text_genre = bars_genre.mark_text(
+            align='left',
+            baseline='middle',
+            dx=5,
+            fontSize=10,
+        ).encode(
+            text=alt.Text('total_box_office_worldwide', format='$.2s'),
+            color=alt.value('black')
+        )
 
-        # Remove spines and ticks for cleaner look
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
-        ax.spines['left'].set_visible(False)
-        ax.tick_params(axis='x', bottom=False, labelbottom=False)
-        ax.set_ylabel('')
-        ax.set_xlabel('')
-        ax.set_title('')  # Add title if needed
+        genre_chart = alt.layer(bars_genre, text_genre).configure_view(
+            strokeWidth=0
+        ).properties(
+            #height=alt.Step(18) # Adjust step for bar height
+            width=500,
+            height=440
+        )
 
-        # Display the chart in Streamlit
-        st.pyplot(fig)
-
+    if genre_chart:
+        st.altair_chart(genre_chart, use_container_width=True)
     else:
         st.info("No subgenre box office data available to display.")
 
 
 #########################################################
-#######SCORES ##################################################
+#########################################################
 unique_genres = genres_df[genres_df['category'] == 'Genre']['value'].unique().tolist()
 unique_option_map = {genre: genre for genre in unique_genres}
 
@@ -658,74 +644,47 @@ if 'film' in merged_df.columns and 'imdb_score' in merged_df.columns and 'cinema
     # Fill missing values in 'cinema_score' with a placeholder
     sorted_df['cinema_score'] = sorted_df['cinema_score'].fillna('N/A')
 
-    # Define a color mapping dictionary (manually maps cinema_score to color)
-    color_dict = {
-        'A+': '#3399FF',
-        'A': 'lightblue',
-        'A-': '#FFAB5B',
-        'N/A': '#A5BFCC'
-    }
-
-    # Apply color mapping to the DataFrame
-    color_scale = [color_dict.get(score, '#CCCCCC') for score in sorted_df['cinema_score']]
-    
     # Define color scale for cinema_score
-    # Create a colormap from the color_scale
-    cmap = plt.get_cmap(color_scale)
+    color_scale = alt.Scale(domain=['A+', 'A', 'A-', 'N/A'], 
+                          range=['#3399FF', 'lightblue', '#FFAB5B', '#A5BFCC'])
 
-    # Normalize cinema_score for colormap
-    norm = plt.Normalize(sorted_df['cinema_score'].min(), sorted_df['cinema_score'].max())
-
-    # Create the figure and axis
-    fig, ax = plt.subplots(figsize=(12, 8))
-
-    # Plot the horizontal bars
-    bars = ax.barh(
-        sorted_df['film'],
-        sorted_df['cinema_score'],  # Replace 'cinema_score' with your `sort_column` if needed
-        color=cmap(norm(sorted_df['cinema_score'])),  # Apply colormap
-        edgecolor='none'
+# Create the base bar chart
+    bars = alt.Chart(sorted_df).mark_bar().encode(
+        x=alt.X(sort_column, 
+                title=None,
+                axis=alt.Axis(labels=False, ticks=False, domain=False)),
+        y=alt.Y('film', sort='-x'),
+        color=alt.Color('cinema_score', scale=color_scale)
     )
 
-    # Add text labels to the bars
-    for bar in bars:
-        ax.text(
-            bar.get_width() + 0.5,  # Nudge text to the right of the bar
-            bar.get_y() + bar.get_height() / 2,  # Center the text vertically
-            f"{bar.get_width():.1f}",  # Display the value with 1 decimal place
-            va='center',
-            ha='left',
-            fontsize=13,
-            color='black'
-        )
+    # Create text labels for the values
+    text = alt.Chart(sorted_df).mark_text(
+        align='left',
+        baseline='middle',
+        dx=250,  # Nudge text to right so it doesn't overlap the bar
+        fontSize=13
+    ).encode(
+        x=alt.X(sort_column),
+        y=alt.Y('film', sort='-x', title=None),
+        text=alt.Text(sort_column),  # Format to 1 decimal place
+        color=alt.value('black')  # Set text color to black
+    )
 
-    # Add annotations for tooltip-like functionality
-    for idx, row in sorted_df.iterrows():
-        ax.text(
-            0,  # Position text near the left edge of the bars
-            idx,
-            f"IMDB: {row['imdb_score']:.1f}, Cinema: {row['cinema_score']:.1f}, "
-            f"Metacritic: {row['metacritic_score']:.1f}, RT: {row['rotten_tomatoes_score']:.1f}",
-            va='center',
-            ha='right',
-            fontsize=10,
-            color='gray'
-        )
+    # Combine bars and text
+    chart = alt.layer(bars, text).encode(
+        tooltip=[
+            'imdb_score',
+            'cinema_score',
+            'metacritic_score',
+            'rotten_tomatoes_score'
+        ]
+    ).properties(
+    ).configure_mark(
+        tooltip=alt.TooltipContent('encoding')
+    )
 
-    # Add colorbar to represent the cinema_score
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-    sm.set_array([])  # Dummy array for the colorbar
-    cbar = plt.colorbar(sm, ax=ax, orientation='vertical', fraction=0.02, pad=0.04)
-    cbar.set_label('Cinema Score')
-
-    # Set labels and title
-    ax.set_xlabel('Cinema Score')
-    ax.set_ylabel('Film')
-    ax.set_title('Film Scores')
-
-    # Display the plot in Streamlit
-    st.pyplot(fig)
-
+    # Display the chart in Streamlit
+    col1.altair_chart(chart, use_container_width=True)
 
 
 def main():
