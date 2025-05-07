@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import streamlit as st  
-
+import numpy as np # For sample data if needed
 
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
@@ -658,74 +658,66 @@ if 'film' in merged_df.columns and 'imdb_score' in merged_df.columns and 'cinema
     # Fill missing values in 'cinema_score' with a placeholder
     sorted_df['cinema_score'] = sorted_df['cinema_score'].fillna('N/A')
 
-    # Define a color mapping dictionary (manually maps cinema_score to color)
-    color_dict = {
+    # Assuming sorted_df is your DataFrame, replace with your actual DataFrame name
+# Create the Matplotlib figure
+
+    # Remove duplicates based on the 'film' column
+    sorted_df = sorted_df.drop_duplicates(subset=['film'])
+
+    # Create the Matplotlib figure
+    fig, ax = plt.subplots(figsize=(10, len(sorted_df) * 0.5))  # Adjust figure size based on number of films
+
+    # Define color mapping
+    color_map = {
         'A+': '#3399FF',
         'A': 'lightblue',
         'A-': '#FFAB5B',
         'N/A': '#A5BFCC'
     }
 
-    # Apply color mapping to the DataFrame
-    color_scale = [color_dict.get(score, '#CCCCCC') for score in sorted_df['cinema_score']]
-    
-    # Define color scale for cinema_score
-    # Create a colormap from the color_scale
-    cmap = plt.get_cmap(color_scale)
+    # Create bars
+    y_positions = np.arange(len(sorted_df))  # One position per unique film
+    bars = ax.barh(y_positions, 
+                sorted_df[sort_column],  # Using the same sort_column
+                color=[color_map.get(score, '#A5BFCC') for score in sorted_df['cinema_score']])
 
-    # Normalize cinema_score for colormap
-    norm = plt.Normalize(sorted_df['cinema_score'].min(), sorted_df['cinema_score'].max())
+    # Customize the plot
+    ax.set_yticks(y_positions)
+    ax.set_yticklabels(sorted_df['film'])  # Use unique film names
+    ax.invert_yaxis() 
 
-    # Create the figure and axis
-    fig, ax = plt.subplots(figsize=(12, 8))
-
-    # Plot the horizontal bars
-    bars = ax.barh(
-        sorted_df['film'],
-        sorted_df['cinema_score'],  # Replace 'cinema_score' with your `sort_column` if needed
-        color=cmap(norm(sorted_df['cinema_score'])),  # Apply colormap
-        edgecolor='none'
-    )
-
-    # Add text labels to the bars
-    for bar in bars:
+    # Add text labels 
+    for i, bar in enumerate(bars):
+        width = bar.get_width()
+        # Position text at the end of the barr
         ax.text(
-            bar.get_width() + 0.5,  # Nudge text to the right of the bar
-            bar.get_y() + bar.get_height() / 2,  # Center the text vertically
-            f"{bar.get_width():.1f}",  # Display the value with 1 decimal place
-            va='center',
-            ha='left',
+            x=width + max(sorted_df[sort_column]) * 0.05,  # Explicitly use keyword 'x'
+            y=bar.get_y() + bar.get_height()/2,            # Explicitly use keyword 'y'
+            s=f'{width:.1f}',                              # Explicitly use keyword 's' for the text
+            ha='left',                                     # Horizontal alignment
+            va='center',                                   # Vertical alignment
             fontsize=13,
             color='black'
         )
 
-    # Add annotations for tooltip-like functionality
-    for idx, row in sorted_df.iterrows():
-        ax.text(
-            0,  # Position text near the left edge of the bars
-            idx,
-            f"IMDB: {row['imdb_score']:.1f}, Cinema: {row['cinema_score']:.1f}, "
-            f"Metacritic: {row['metacritic_score']:.1f}, RT: {row['rotten_tomatoes_score']:.1f}",
-            va='center',
-            ha='right',
-            fontsize=10,
-            color='gray'
-        )
+    # Remove x-axis labels, ticks, and domain
+    ax.set_xticks([])
+    ax.set_xlabel('')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
 
-    # Add colorbar to represent the cinema_score
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-    sm.set_array([])  # Dummy array for the colorbar
-    cbar = plt.colorbar(sm, ax=ax, orientation='vertical', fraction=0.02, pad=0.04)
-    cbar.set_label('Cinema Score')
+    # Add a legend for the colors
+    legend_elements = [plt.Rectangle((0,0),1,1, color=color, label=score) 
+                    for score, color in color_map.items()]
+    ax.legend(handles=legend_elements, title='Cinema Score', 
+            bbox_to_anchor=(1.05, 1), loc='upper left')
 
-    # Set labels and title
-    ax.set_xlabel('Cinema Score')
-    ax.set_ylabel('Film')
-    ax.set_title('Film Scores')
+    # Adjust layout to prevent label cutoff
+    plt.tight_layout()
 
-    # Display the plot in Streamlit
-    st.pyplot(fig)
-
+    # Streamlit's matplotlib 
+    col1.pyplot(fig)
 
 
 def main():
