@@ -1,5 +1,9 @@
 # pixar-boxoffice
 
+## App
+https://pixar-boxoffice.streamlit.app/movies
+
+
 ### Home
 ![1 pixar](https://github.com/user-attachments/assets/55415747-3ca7-4aac-9114-aaaab5d87178)
 
