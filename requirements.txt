@@ -82,3 +82,5 @@ watchdog==6.0.0
 streamlit
 streamlit-lottie
 streamlit_lottie
+matplotlib
+matplotlib==3.9
